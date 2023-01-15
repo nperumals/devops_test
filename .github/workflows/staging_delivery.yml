@@ -1,0 +1,46 @@
+name: Test-Staging
+
+on:
+  push:
+    branches:
+      - staging
+    paths-ignore:
+      - 'kubernetes/**'
+
+jobs:
+#  build:
+#    uses: ./.github/workflows/build.yml
+
+  delivery:
+#    needs: build
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_REGISTRY_NAMESPACE: rg.fr-par.scw.cloud/marketparts-import
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Prepare build ids
+        id: prep
+        run: |
+          # Set environment for branch
+          if [[ $GITHUB_REF == 'refs/heads/main' ]]; then
+             ENV1="production"
+          else
+             ENV1=${GITHUB_REF##*/}
+          fi  
+          echo $ENV1        
+          BRANCH=${GITHUB_REF##*/}
+          TS=$(date +%s)
+          REVISION=${GITHUB_SHA::8}
+          BUILD_DATE="$(date -u +'%Y%m%dT%H%M%SZ')"
+          IMAGE_NAME="${ENV1}-api"
+          IMAGE_TAG="${BUILD_DATE}-${REVISION}"
+          BUILD_ID="${IMAGE_NAME}:${IMAGE_TAG}"
+          LATEST_ID="${IMAGE_NAME}:latest"
+          echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "BUILD_ID=${BUILD_ID}" >> $GITHUB_OUTPUT
+          echo "LATEST_ID=${LATEST_ID}" >> $GITHUB_OUTPUT
+
+      - name: Login to Docker registry
+        run: echo ${{ secrets.SCW_REGISTRY_PASSWORD }} | docker login $DOCKER_REGISTRY_NAMESPACE -u no-login --password-stdin
